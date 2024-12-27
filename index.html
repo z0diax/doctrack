@@ -1,0 +1,874 @@
+<html><head><base href=".">
+<meta charset="UTF-8">
+<title>Document Tracker</title>
+<script src="https://edge-config.vercel.com/client/v1/edge-config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/luxon/3.4.3/luxon.min.js"></script>
+<style>
+:root {
+  --primary: #2c3e50;
+  --secondary: #34495e;
+  --accent: #3498db;
+  --light: #ecf0f1;
+  --success: #2ecc71;
+  --warning: #f1c40f;
+  --danger: #e74c3c;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+body {
+  background: var(--light);
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+nav {
+  background: var(--primary);
+  padding: 1rem;
+  color: white;
+}
+
+.logo {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.auth-container {
+  max-width: 400px;
+  margin: 100px auto;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.auth-tabs {
+  display: flex;
+  margin-bottom: 20px;
+  border-bottom: 2px solid var(--accent);
+}
+
+.auth-tab {
+  flex: 1;
+  padding: 10px;
+  text-align: center;
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-weight: bold;
+  color: var(--primary);
+}
+
+.auth-tab.active {
+  background: var(--accent);
+  color: white;
+}
+
+.auth-form {
+  display: none;
+}
+
+.auth-form.active {
+  display: block;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+}
+
+.logout-btn {
+  background: transparent;
+  border: 1px solid white;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.main-content {
+  display: none;
+}
+
+.main-content.active {
+  display: block;
+}
+
+.document-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.document-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+  border: 1px solid #eee;
+  position: relative;
+  overflow: hidden;
+}
+
+.document-card:before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--accent);
+  opacity: 0.8;
+}
+
+.document-card.archived:before {
+  background: var(--secondary);
+}
+
+.document-card h3 {
+  color: var(--primary);
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.5rem;
+}
+
+.document-card p {
+  margin: 0.5rem 0;
+  color: #555;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.document-card strong {
+  color: var(--primary);
+  min-width: 120px;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.document-card .metadata {
+  margin-top: 1rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #eee;
+  font-size: 0.85rem;
+  color: #777;
+}
+
+.document-card .status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.document-actions {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 0.75rem;
+}
+
+.document-actions .btn {
+  width: 100%;
+  padding: 0.5rem;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: opacity 0.2s;
+}
+
+.btn:hover {
+  opacity: 0.9;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: white;
+}
+
+.btn-success {
+  background: var(--success);
+  color: white;
+}
+
+.btn-warning {
+  background: var(--warning);
+  color: black;
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: white;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+  background: white;
+  width: 90%;
+  max-width: 500px;
+  margin: 50px auto;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.search-bar {
+  margin: 1rem 0;
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.status {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.status-pending {
+  background: var(--warning);
+  color: black;
+}
+
+.status-approved {
+  background: var(--success);
+  color: white;
+}
+
+.status-rejected {
+  background: var(--danger);
+  color: white;
+}
+
+.status-archived {
+  background: var(--secondary);
+  color: white;
+}
+
+.filter-buttons {
+  margin: 1rem 0;
+  display: flex;
+  gap: 10px;
+}
+
+.document-logs {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.log-entry {
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+  transition: background-color 0.2s;
+}
+
+.log-entry:hover {
+  background-color: #f8f9fa;
+}
+
+.log-entry:last-child {
+  border-bottom: none;
+}
+
+.log-timestamp {
+  font-size: 0.85em;
+  color: #888;
+  margin-top: 5px;
+}
+
+.log-entry strong {
+  color: var(--primary);
+}
+
+.logs-container {
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 20px 0;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #f9f9f9;
+}
+
+.user-input {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  z-index: 1000;
+}
+
+.logs-link {
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 0.9rem;
+}
+
+.logs-link:hover {
+  background: #e9ecef;
+}
+
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+}
+
+.toast {
+  background: white;
+  border-left: 4px solid #3498db;
+  padding: 16px;
+  margin-bottom: 10px;
+  border-radius: 4px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 300px;
+  animation: slideIn 0.3s ease-out;
+}
+
+.toast.success {
+  border-left-color: var(--success);
+}
+
+.toast.error {
+  border-left-color: var(--danger);
+}
+
+.toast.warning {
+  border-left-color: var(--warning);
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 4px;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.confirm-modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  z-index: 9999;
+}
+
+.confirm-content {
+  background: white;
+  width: 90%;
+  max-width: 400px;
+  margin: 100px auto;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  animation: scaleIn 0.3s ease-out;
+}
+
+.confirm-title {
+  font-size: 1.5rem;
+  color: var(--primary);
+  margin-bottom: 1rem;
+}
+
+.confirm-message {
+  color: #666;
+  margin-bottom: 1.5rem;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.logs-modal-title {
+  margin-bottom: 20px;
+  color: var(--primary);
+  font-size: 1.5rem;
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: 10px;
+}
+
+.logs-container {
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: inset 0 0 5px rgba(0,0,0,0.1);
+}
+
+.log-user {
+  color: var(--primary);
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+.log-action {
+  color: #444;
+  line-height: 1.4;
+}
+
+</style>
+
+<script>document.addEventListener('DOMContentLoaded', function () {
+  if (!document.getElementById('toastContainer')) {
+    const toastContainer = document.createElement('div');
+    toastContainer.id = 'toastContainer';
+    toastContainer.className = 'toast-container';
+    document.body.appendChild(toastContainer);
+  }
+});
+function showToast(message, type = 'info') {
+  let toastContainer = document.getElementById('toastContainer');
+  if (!toastContainer) {
+    toastContainer = document.createElement('div');
+    toastContainer.id = 'toastContainer';
+    toastContainer.className = 'toast-container';
+    document.body.appendChild(toastContainer);
+  }
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  const messageSpan = document.createElement('span');
+  messageSpan.textContent = message;
+  const closeButton = document.createElement('button');
+  closeButton.className = 'toast-close';
+  closeButton.innerHTML = '&times;';
+  closeButton.onclick = () => {
+    toast.style.animation = 'fadeOut 0.3s forwards';
+    setTimeout(() => toast.remove(), 300);
+  };
+  toast.appendChild(messageSpan);
+  toast.appendChild(closeButton);
+  toastContainer.appendChild(toast);
+  setTimeout(() => {
+    if (toast && toast.parentElement) {
+      toast.style.animation = 'fadeOut 0.3s forwards';
+      setTimeout(() => {
+        if (toast && toast.parentElement) {
+          toast.remove();
+        }
+      }, 300);
+    }
+  }, 5000);
+}
+let currentUser = null;
+let users = JSON.parse(localStorage.getItem('users') || '[]');
+let offices = [];
+let documentTypes = [];
+let statusTypes = [];
+let documents = [];
+async function login(event) {
+  event.preventDefault();
+  const username = document.getElementById('loginUsername').value;
+  const password = document.getElementById('loginPassword').value;
+  const user = users.find(u => u.username === username && u.password === password);
+  if (user) {
+    currentUser = username;
+    localStorage.setItem('currentUser', username);
+    document.querySelector('.auth-container').style.display = 'none';
+    document.querySelector('.main-content').classList.add('active');
+    updateUserInfo();
+    await initializeDocuments();
+    filterDocuments();
+    showToast('Login successful!', 'success');
+  } else {
+    showToast('Invalid username or password', 'error');
+  }
+}
+async function signup(event) {
+  event.preventDefault();
+  const username = document.getElementById('signupUsername').value;
+  const password = document.getElementById('signupPassword').value;
+  if (users.some(u => u.username === username)) {
+    showToast('Username already exists', 'error');
+    return;
+  }
+  users.push({
+    username,
+    password
+  });
+  localStorage.setItem('users', JSON.stringify(users));
+  showToast('Account created successfully!', 'success');
+  currentUser = username;
+  localStorage.setItem('currentUser', username);
+  document.querySelector('.auth-container').style.display = 'none';
+  document.querySelector('.main-content').classList.add('active');
+  updateUserInfo();
+  await initializeDocuments();
+  filterDocuments();
+}
+function logout() {
+  currentUser = null;
+  localStorage.removeItem('currentUser');
+  document.querySelector('.auth-container').style.display = 'block';
+  document.querySelector('.main-content').classList.remove('active');
+  showToast('Logged out successfully', 'success');
+}
+function updateUserInfo() {
+  const userInfo = document.querySelector('.user-info');
+  userInfo.innerHTML = `
+    <span>Welcome, ${currentUser}!</span>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  `;
+}
+function switchTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+  document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+  document.getElementById(`${tab}Form`).classList.add('active');
+}
+async function initializeDocuments() {
+  try {
+    const storedDocs = localStorage.getItem('documents');
+    documents = storedDocs ? JSON.parse(storedDocs) : [];
+    filterDocuments();
+  } catch (error) {
+    console.error('Error initializing documents:', error);
+    showToast('Error loading documents', 'error');
+  }
+}
+function filterDocuments() {
+  const searchTerm = document.querySelector('.search-bar')?.value?.toLowerCase() || '';
+  const showArchived = document.getElementById('archiveToggle')?.classList.contains('active');
+  const filteredDocs = documents.filter(doc => {
+    const matchesSearch = doc.name.toLowerCase().includes(searchTerm) || doc.office.toLowerCase().includes(searchTerm) || doc.type.toLowerCase().includes(searchTerm) || doc.status.toLowerCase().includes(searchTerm) || doc.remarks.toLowerCase().includes(searchTerm);
+    const matchesArchived = showArchived ? doc.archived : !doc.archived;
+    return matchesSearch && matchesArchived;
+  });
+  displayDocuments(filteredDocs);
+}
+function displayDocuments(docs) {
+  const grid = document.getElementById('documentGrid');
+  if (!grid) return;
+  grid.innerHTML = docs.map(doc => `
+    <div class="document-card ${doc.archived ? 'archived' : ''}">
+      <h3>${doc.name}</h3>
+      <p><strong>Office:</strong> ${doc.office}</p>
+      <p><strong>Type:</strong> ${doc.type}</p>
+      <p><strong>Status:</strong> <span class="status status-${doc.status.toLowerCase()}">${doc.status}</span></p>
+      <p><strong>Remarks:</strong> ${doc.remarks}</p>
+      <div class="metadata">
+        Created by ${doc.createdBy} on ${new Date(doc.createdAt).toLocaleDateString()}
+      </div>
+      <div class="document-actions">
+        <button class="btn btn-primary" onclick="editDoc('${doc.id}')">Edit</button>
+        <button class="btn btn-warning" onclick="toggleArchive('${doc.id}')">${doc.archived ? 'Unarchive' : 'Archive'}</button>
+        <button class="btn btn-danger" onclick="deleteDoc('${doc.id}')">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+function toggleArchive(id) {
+  const doc = documents.find(d => d.id === id);
+  if (doc) {
+    doc.archived = !doc.archived;
+    localStorage.setItem('documents', JSON.stringify(documents));
+    filterDocuments();
+    showToast(`Document ${doc.archived ? 'archived' : 'unarchived'}`, 'success');
+  }
+}
+function deleteDoc(id) {
+  documents = documents.filter(d => d.id !== id);
+  localStorage.setItem('documents', JSON.stringify(documents));
+  filterDocuments();
+  showToast('Document deleted', 'success');
+}
+function editDoc(id) {
+  const doc = documents.find(d => d.id === id);
+  if (doc) {
+    document.getElementById('editDocId').value = doc.id;
+    document.getElementById('editDocName').value = doc.name;
+    document.getElementById('editDocOffice').value = doc.office;
+    document.getElementById('editDocType').value = doc.type;
+    document.getElementById('editDocStatus').value = doc.status;
+    document.getElementById('editDocRemarks').value = doc.remarks;
+    document.getElementById('editModal').style.display = 'block';
+  }
+}
+function updateDropdowns() {
+  const officeSelects = ['docOffice', 'editDocOffice'];
+  const typeSelects = ['docType', 'editDocType'];
+  const statusSelects = ['docStatus', 'editDocStatus'];
+  officeSelects.forEach(id => {
+    const select = document.getElementById(id);
+    if (!select) return;
+    select.innerHTML = `
+      ${offices.map(office => `<option value="${office}">${office}</option>`).join('')}
+      <option value="add_new">+ Add New</option>
+    `;
+  });
+  typeSelects.forEach(id => {
+    const select = document.getElementById(id);
+    if (!select) return;
+    select.innerHTML = `
+      ${documentTypes.map(type => `<option value="${type}">${type}</option>`).join('')}
+      <option value="add_new">+ Add New</option>
+    `;
+  });
+  statusSelects.forEach(id => {
+    const select = document.getElementById(id);
+    if (!select) return;
+    select.innerHTML = `
+      ${statusTypes.map(status => `<option value="${status}">${status}</option>`).join('')}
+      <option value="add_new">+ Add New</option>
+    `;
+  });
+}
+window.addEventListener('load', async () => {
+  try {
+    const storedUser = localStorage.getItem('currentUser');
+    if (storedUser) {
+      currentUser = storedUser;
+      document.querySelector('.auth-container').style.display = 'none';
+      document.querySelector('.main-content').classList.add('active');
+      updateUserInfo();
+    }
+    offices = ['Main Office', 'Branch Office'];
+    documentTypes = ['Report', 'Memo', 'Contract', 'Payroll'];
+    statusTypes = ['Pending', 'Approved', 'Rejected'];
+    await initializeDocuments();
+    updateDropdowns();
+    filterDocuments();
+  } catch (error) {
+    console.error('Error initializing application:', error);
+    showToast('Error loading application data. Please refresh the page.', 'error');
+  }
+});</script>
+</head>
+<body>
+  <nav>
+    <div class="container">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div class="logo">&#x1f4c4; Document Tracker</div>
+        <div class="user-info"></div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="auth-container">
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-tab="login" onclick="switchTab(&apos;login&apos;)">Login</button>
+      <button class="auth-tab" data-tab="signup" onclick="switchTab(&apos;signup&apos;)">Sign Up</button>
+    </div>
+    
+    <form id="loginForm" class="auth-form active" onsubmit="login(event)">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="loginUsername" required>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="loginPassword" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Login</button>
+    </form>
+
+    <form id="signupForm" class="auth-form" onsubmit="signup(event)">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="signupUsername" required>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="signupPassword" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Sign Up</button>
+    </form>
+  </div>
+
+  <div class="main-content">
+    <div class="container">
+      <button class="btn btn-primary" onclick="showAddModal()">Add New Document</button>
+      <button id="archiveToggle" class="btn btn-warning" onclick="toggleArchiveView()">Show Archived</button>
+      <input type="text" class="search-bar" placeholder="Search documents..." oninput="filterDocuments()">
+      
+      <div class="document-grid" id="documentGrid"></div>
+    </div>
+
+    <!-- Add Document Modal -->
+    <div id="addModal" class="modal">
+      <div class="modal-content">
+        <h2>Add New Document</h2>
+        <form id="addDocumentForm" onsubmit="addDocument(event)">
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" id="docName" required>
+          </div>
+          <div class="form-group">
+            <label>Office</label>
+            <select id="docOffice" required onchange="if(this.value===&apos;add_new&apos;){addNewOption(&apos;office&apos;)}">
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Document Type</label>
+            <select id="docType" required onchange="if(this.value===&apos;add_new&apos;){addNewOption(&apos;documentType&apos;)}else{handleDocTypeChange(this, &apos;payrollPeriodGroup&apos;, &apos;payrollPeriod&apos;)}">
+            </select>
+          </div>
+          <div class="form-group" id="payrollPeriodGroup" style="display: none;">
+            <label>Payroll Period</label>
+            <select id="payrollPeriod" required>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select id="docStatus" required onchange="if(this.value===&apos;add_new&apos;){addNewOption(&apos;status&apos;)}">
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Remarks</label>
+            <textarea id="docRemarks" rows="3"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">Add Document</button>
+          <button type="button" class="btn btn-danger" onclick="hideAddModal()">Cancel</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Edit Document Modal -->
+    <div id="editModal" class="modal">
+      <div class="modal-content">
+        <h2>Edit Document</h2>
+        <form id="editDocumentForm" onsubmit="editDocument(event)">
+          <input type="hidden" id="editDocId">
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" id="editDocName" required>
+          </div>
+          <div class="form-group">
+            <label>Office</label>
+            <select id="editDocOffice" required onchange="if(this.value===&apos;add_new&apos;){addNewOption(&apos;office&apos;)}">
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Document Type</label>
+            <select id="editDocType" required onchange="if(this.value===&apos;add_new&apos;){addNewOption(&apos;documentType&apos;)}else{handleDocTypeChange(this, &apos;editPayrollPeriodGroup&apos;, &apos;editPayrollPeriod&apos;)}">
+            </select>
+          </div>
+          <div class="form-group" id="editPayrollPeriodGroup" style="display: none;">
+            <label>Payroll Period</label>
+            <select id="editPayrollPeriod" required>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select id="editDocStatus" required onchange="if(this.value===&apos;add_new&apos;){addNewOption(&apos;status&apos;)}">
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Remarks</label>
+            <textarea id="editDocRemarks" rows="3"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+          <button type="button" class="btn btn-danger" onclick="hideEditModal()">Cancel</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+</body></html>
